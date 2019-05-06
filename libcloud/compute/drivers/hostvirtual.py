@@ -26,10 +26,9 @@ except ImportError:
     import json
 
 from libcloud.common.hostvirtual import (
-    NetActuateJobStatus, NetActuateNode,
+    NetActuateJobStatus, NetActuateNode, HostVirtualException,
     NetActuateComputeConnection, HostVirtualComputeConnection
 )
-from libcloud.common.hostvirtual import HostVirtualException
 from libcloud.compute.providers import Provider
 from libcloud.compute.types import NodeState
 from libcloud.compute.base import Node, NodeDriver
