@@ -101,7 +101,8 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
     connectionCls = HostVirtualComputeConnection
     features = {'create_node': ['ssh_key', 'password']}
 
-    def __init__(self, key, secure=True, host=None, port=None, api_version=None):
+    def __init__(self, key, secure=True, host=None,
+                 port=None, api_version=None):
         self.location = None
         super(HostVirtualNodeDriver, self).__init__(
             key=key,
