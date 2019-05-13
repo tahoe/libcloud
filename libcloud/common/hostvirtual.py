@@ -19,15 +19,17 @@ except ImportError:
 
 from libcloud.utils.py3 import httplib
 from libcloud.common.base import (
-    ConnectionKey, JsonResponse, ConnectionUserAndKey, Node)
+    ConnectionKey, JsonResponse, ConnectionUserAndKey)
 from libcloud.compute.types import InvalidCredsError
-from libcloud.compute.base import NodeAuthSSHKey, NodeAuthPassword
+from libcloud.compute.base import (
+    NodeAuthSSHKey, NodeAuthPassword, Node)
 from libcloud.common.types import LibcloudError
 from libcloud.compute.ssh import ParamikoSSHClient
 import paramiko
 
 API_HOST_v1 = "vapi.vr.org"
-API_HOST_v2 = "staging-portal4.netactuate.com"
+# API_HOST_v2 = "staging-portal4.netactuate.com"
+API_HOST_v2 = "oldthing.test/api/legacy"
 API_ROOT = ""
 # Version 1
 
@@ -99,14 +101,13 @@ class HostVirtualComputeConnection(HostVirtualConnection):
 
 
 # Version 2
-class NetActuateConnection(ConnectionUserAndKey):
+class NetActuateConnection(ConnectionKey):
     host = API_HOST_v2
 
     allow_insecure = False
 
     def add_default_params(self, params):
         params["key"] = self.key
-        params["user_id"] = self.user_id
         return params
 
 
