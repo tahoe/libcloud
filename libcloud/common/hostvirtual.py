@@ -28,8 +28,8 @@ from libcloud.compute.ssh import ParamikoSSHClient
 import paramiko
 
 API_HOST_v1 = "vapi.vr.org"
-# API_HOST_v2 = "staging-portal4.netactuate.com"
 API_HOST_v2 = "oldthing.test/api/legacy"
+#API_HOST_v2 = "staging-portal4.netactuate.com/api/legacy"
 API_ROOT = ""
 # Version 1
 
@@ -201,8 +201,8 @@ class NetActuateResponse(JsonResponse):
         if not self.body:
             return None
 
-        data = json.loads(self.body)
-        return data
+        # data = json.loads(self.body)
+        return self.body  # data
 
     def parse_error(self):
         data = self.parse_body()

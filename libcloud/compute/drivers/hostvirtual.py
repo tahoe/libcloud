@@ -36,7 +36,7 @@ from libcloud.compute.base import NodeImage, NodeSize, NodeLocation
 from libcloud.compute.base import NodeAuthSSHKey, NodeAuthPassword
 
 API_ROOT = ''
-DEFAULT_API_VERSION = '1.0'
+DEFAULT_API_VERSION = '2.0'
 
 HV_NODE_STATE_MAP = {
     'BUILDING': NodeState.PENDING,
@@ -102,7 +102,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
     features = {'create_node': ['ssh_key', 'password']}
 
     def __init__(self, key, secure=True, host=None,
-                 port=None, api_version=None):
+                 port=None, api_version='1.0'):
         self.location = None
         super(HostVirtualNodeDriver, self).__init__(
             key=key,
@@ -529,7 +529,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     def __init__(self, key, secure=True, host=None, port=None,
                  logger=None, debug=False, auth=None,
                  ssh_key_file=None, ssh_user='root',
-                 user_password=None, api_version=None):
+                 user_password=None, api_version='2.0'):
         self.debug = debug
         self.logger = logger
         self._ssh_user = ssh_user
@@ -794,9 +794,10 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         try:
             result = self.connection.request(
                 '{0}/cloud/packages/'.format(API_ROOT)
-            ).object
+            )
         except HostVirtualException:
             return []
+        return result
         pkgs = []
         for value in result:
             pkgs.append(value)
