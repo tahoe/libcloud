@@ -27,11 +27,17 @@ from libcloud.common.types import LibcloudError
 from libcloud.compute.ssh import ParamikoSSHClient
 import paramiko
 
-API_HOST_v1 = "vapi.vr.org"
-API_HOST_v2 = "oldthing.test/api/legacy"
-#API_HOST_v2 = "staging-portal4.netactuate.com/api/legacy"
-API_ROOT = ""
 # Version 1
+API_VARS = {
+    "v1": {
+        "API_HOST": "vapi.vr.org",
+        "API_ROOT": "",
+    },
+    "v2": {
+        "API_HOST": "oldthing.test",
+        "API_ROOT": "/api/legacy",
+    },
+}
 
 
 class HostVirtualException(LibcloudError):
@@ -49,7 +55,7 @@ class HostVirtualException(LibcloudError):
 
 
 class HostVirtualConnection(ConnectionKey):
-    host = API_HOST_v1
+    host = API_VARS['v1']['API_HOST']
 
     allow_insecure = False
 
@@ -102,9 +108,9 @@ class HostVirtualComputeConnection(HostVirtualConnection):
 
 # Version 2
 class NetActuateConnection(ConnectionKey):
-    host = API_HOST_v2
+    host = API_VARS['v2']['API_HOST']
 
-    allow_insecure = False
+    allow_insecure = True
 
     def add_default_params(self, params):
         params["key"] = self.key
@@ -120,6 +126,7 @@ class NetActuateNode(Node):
 
     def __init__(self, *args, **kwargs):
         self._auth = kwargs.pop("auth", None)
+        self._ssh_user = kwargs.pop("ssh_user", None)
         if self._auth is not None:
             self._set_auth_method(self._auth)
         else:
@@ -140,7 +147,7 @@ class NetActuateNode(Node):
         # no connection, start setting one up using the
         # first private IP
         try:
-            hostname = self.private_ips[0]
+            hostname = self.public_ips[0]
         except Exception:
             return False
 
@@ -198,11 +205,12 @@ class NetActuateResponse(JsonResponse):
     ]
 
     def parse_body(self):
+
         if not self.body:
             return None
 
-        # data = json.loads(self.body)
-        return self.body  # data
+        data = json.loads(self.body)
+        return data
 
     def parse_error(self):
         data = self.parse_body()
@@ -237,11 +245,13 @@ class NetActuateFromDict(object):
 
 
 class NetActuateJobStatus(object):
+    API_ROOT = API_VARS['v2']['API_ROOT']
+
     def __init__(self, conn=None, node=None, job_result={}):
         self.conn = conn
         self.node = node
         self.job_result = NetActuateFromDict(job_result)
-        self._job = self._get_job_status()
+        # self._job = self._get_job_status()
 
     @property
     def status(self):
@@ -272,9 +282,10 @@ class NetActuateJobStatus(object):
         return self.status == 6
 
     def _get_job_status(self):
+        return self.job_result
         params = {"mbpkgid": self.node.id, "job_id": self.job_result.id}
         result = self.conn.request(
-            API_ROOT + "/cloud/serverjob", params=params).object
+            self.API_ROOT + "/cloud/serverjob", params=params).object
         return NetActuateFromDict(result)
 
     def refresh(self):
@@ -288,3 +299,7 @@ class NetActuateComputeResponse(NetActuateResponse):
 
 class NetActuateComputeConnection(NetActuateConnection):
     responseCls = NetActuateComputeResponse
+
+
+def dummyLogger(*args, **kwargs):
+    pass

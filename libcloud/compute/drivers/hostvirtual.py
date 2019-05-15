@@ -24,10 +24,11 @@ try:
     import simplejson as json
 except ImportError:
     import json
-
+import requests
 from libcloud.common.hostvirtual import (
     NetActuateJobStatus, NetActuateNode, HostVirtualException,
-    NetActuateComputeConnection, HostVirtualComputeConnection
+    NetActuateComputeConnection, HostVirtualComputeConnection,
+    API_VARS, dummyLogger
 )
 from libcloud.compute.providers import Provider
 from libcloud.compute.types import NodeState
@@ -35,8 +36,7 @@ from libcloud.compute.base import Node, NodeDriver
 from libcloud.compute.base import NodeImage, NodeSize, NodeLocation
 from libcloud.compute.base import NodeAuthSSHKey, NodeAuthPassword
 
-API_ROOT = ''
-DEFAULT_API_VERSION = '2.0'
+DEFAULT_API_VERSION = 'v2'
 
 HV_NODE_STATE_MAP = {
     'BUILDING': NodeState.PENDING,
@@ -46,7 +46,7 @@ HV_NODE_STATE_MAP = {
     'REBOOTING': NodeState.REBOOTING,
     'STARTING': NodeState.REBOOTING,
     'TERMINATED': NodeState.TERMINATED,  # server is powered down
-    'STOPPED': NodeState.STOPPED
+    'STOPPED': NodeState.STOPPED,
 }
 
 NA_NODE_STATE_MAP = {
@@ -57,7 +57,10 @@ NA_NODE_STATE_MAP = {
     'REBOOTING': NodeState.REBOOTING,
     'STARTING': NodeState.REBOOTING,
     'TERMINATED': NodeState.TERMINATED,  # server is powered down
-    'STOPPED': NodeState.STOPPED
+    'TERMINATING': NodeState.TERMINATED,
+    'STOPPED': NodeState.STOPPED,
+    'ERROR': NodeState.UNKNOWN
+
 }
 
 DEFAULT_NODE_LOCATION_ID = 21
@@ -100,9 +103,10 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
     name = 'HostVirtual (API V1.0)'
     connectionCls = HostVirtualComputeConnection
     features = {'create_node': ['ssh_key', 'password']}
+    API_ROOT = API_VARS['v1']['API_ROOT']
 
     def __init__(self, key, secure=True, host=None,
-                 port=None, api_version='1.0'):
+                 port=None, api_version='v1'):
         self.location = None
         super(HostVirtualNodeDriver, self).__init__(
             key=key,
@@ -114,7 +118,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         try:
             result = self.connection.request(
                 '{0}/cloud/servers/'
-                .format(API_ROOT)
+                .format(self.API_ROOT)
             ).object
         except HostVirtualException:
             return []
@@ -129,7 +133,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
             location = ''
         result = self.connection.request(
             '{0}/cloud/sizes/{1}'
-            .format(API_ROOT, location)
+            .format(self.API_ROOT, location)
         ).object
         sizes = []
         for size in result:
@@ -146,7 +150,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
     def list_locations(self):
         result = self.connection.request(
             '{0}/cloud/locations/'
-            .format(API_ROOT)
+            .format(self.API_ROOT)
         ).object
         locations = []
         for dc in result.values():
@@ -229,7 +233,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         mbpkgid = node.id
         result = self.connection.request(
             '{0}/cloud/server/reboot/{1}'
-            .format(API_ROOT, mbpkgid),
+            .format(self.API_ROOT, mbpkgid),
             method='POST').object
 
         return bool(result)
@@ -238,14 +242,14 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         mbpkgid = node.id
         result = self.connection.request(
             '{0}/cloud/cancel/{1}'
-            .format(API_ROOT, mbpkgid),
+            .format(self.API_ROOT, mbpkgid),
             method='POST').object
 
         return bool(result)
 
     def list_images(self):
         result = self.connection.request(
-            '{0}/cloud/images/'.format(API_ROOT)
+            '{0}/cloud/images/'.format(self.API_ROOT)
         ).object
         images = []
         for image in result:
@@ -266,7 +270,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
 
         try:
             result = self.connection.request(
-                '{0}/cloud/packages/'.format(API_ROOT)
+                '{0}/cloud/packages/'.format(self.API_ROOT)
             ).object
         except HostVirtualException:
             return []
@@ -287,7 +291,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         plan = size.name
         return self.connection.request(
             '{0}/cloud/buy/{1}'
-            .format(API_ROOT, plan),
+            .format(self.API_ROOT, plan),
             method='POST'
         ).object
 
@@ -303,7 +307,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
 
         result = self.connection.request(
             '{0}/cloud/cancel/{1}'
-            .format(API_ROOT, node.id),
+            .format(self.API_ROOT, node.id),
             method='POST'
         ).object
 
@@ -321,7 +325,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
 
         result = self.connection.request(
             '{0}/cloud/unlink/{1}'
-            .format(API_ROOT, node.id),
+            .format(self.API_ROOT, node.id),
             method='POST'
         ).object
 
@@ -339,7 +343,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
 
         result = self.connection.request(
             '{0}/cloud/server/{1}'
-            .format(API_ROOT, node.id)
+            .format(self.API_ROOT, node.id)
         ).object
         node = self._to_node(result)
         return node
@@ -355,7 +359,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         """
         result = self.connection.request(
             '{0}/cloud/server/shutdown/{1}'
-            .format(API_ROOT, node.id),
+            .format(self.API_ROOT, node.id),
             method='POST'
         ).object
 
@@ -372,7 +376,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         """
         result = self.connection.request(
             '{0}/cloud/server/start/{1}'
-            .format(API_ROOT, node.id),
+            .format(self.API_ROOT, node.id),
             method='POST'
         ).object
 
@@ -430,7 +434,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         try:
             result = self.connection.request(
                 '{0}/cloud/server/build'
-                .format(API_ROOT),
+                .format(self.API_ROOT),
                 data=json.dumps(params),
                 method='POST'
             ).object
@@ -450,7 +454,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
 
         result = self.connection.request(
             '{0}/cloud/server/delete/{1}'
-            .format(API_ROOT, node.id),
+            .format(self.API_ROOT, node.id),
             method='POST'
         ).object
 
@@ -525,13 +529,16 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     website = 'http://www.netactuate.com'
     connectionCls = NetActuateComputeConnection
     features = {'create_node': ['ssh_key', 'password']}
+    API_ROOT = API_VARS['v2']['API_ROOT']
 
     def __init__(self, key, secure=True, host=None, port=None,
-                 logger=None, debug=False, auth=None,
+                 logger=dummyLogger, debug=False, auth=None,
                  ssh_key_file=None, ssh_user='root',
                  user_password=None, api_version='2.0'):
+        self.conn = requests.Session()
         self.debug = debug
-        self.logger = logger
+        self.local_logger = logger
+        self.debug_logger = logger
         self._ssh_user = ssh_user
         self._ssh_key_file = ssh_key_file
         self.auth = auth
@@ -540,13 +547,14 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
                 self.auth = auth_from_path(ssh_key_file)
             elif user_password is not None:
                 self.auth = NodeAuthPassword(user_password)
+
         super(HostVirtualNodeDriver, self).__init__(
             key=key, secure=secure, host=host, port=port)
 
     def list_nodes(self):
         try:
             result = self.connection.request(
-                '{0}/cloud/servers/'.format(API_ROOT)
+                '{0}/cloud/servers/'.format(self.API_ROOT)
             ).object
         except HostVirtualException:
             return []
@@ -558,10 +566,12 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
     def list_locations(self):
         result = self.connection.request(
-            '{0}/cloud/locations/'.format(API_ROOT)
+            '{0}/cloud/locations/'.format(self.API_ROOT)
         ).object
         locations = []
+        return result
         for dc in result.values():
+
             # set up country, avoiding errors, rather just exclude
             dc_id = dc['id']
             dc_name = dc['name']
@@ -587,8 +597,9 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         if location is None:
             location = ''
         result = self.connection.request(
-            '{0}/cloud/sizes/{1}'.format(API_ROOT, location)
+            '{0}/cloud/sizes/{1}'.format(self.API_ROOT, location)
         ).object
+
         sizes = []
         for size in result:
             n = NodeSize(id=size['plan_id'],
@@ -596,14 +607,14 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
                          ram=size['ram'],
                          disk=size['disk'],
                          bandwidth=size['transfer'],
-                         price=size['price'],
+                         price=0,
                          driver=self.connection.driver)
             sizes.append(n)
         return sizes
 
     def list_images(self):
         result = self.connection.request(
-            '{0}/cloud/images/'.format(API_ROOT)
+            '{0}/cloud/images/'.format(self.API_ROOT)
         ).object
         images = []
         for image in result:
@@ -793,7 +804,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
         try:
             result = self.connection.request(
-                '{0}/cloud/packages/'.format(API_ROOT)
+                '{0}/cloud/packages/'.format(self.API_ROOT)
             )
         except HostVirtualException:
             return []
@@ -815,7 +826,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
         plan = size.name
         pkg = self.connection.request(
-            '{0}/cloud/buy/{1}'.format(API_ROOT, plan), method='POST'
+            '{0}/cloud/buy/{1}'.format(self.API_ROOT, plan), method='POST'
         ).object
 
         return pkg
@@ -851,7 +862,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
         mbpkgid = node.id
         result = self.connection.request(
-            '{0}/cloud/server/unlink/{1}'.format(API_ROOT, mbpkgid),
+            '{0}/cloud/server/unlink/{1}'.format(self.API_ROOT, mbpkgid),
             method='POST'
         ).object
 
@@ -875,7 +886,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         :rtype: :class:`Node`
         """
         result = self.connection.request(
-            '{0}/cloud/server/{1}'.format(API_ROOT, node_id)).object
+            '{0}/cloud/server/{1}'.format(self.API_ROOT, node_id)).object
         node = self._to_node(result)
         return node
 
@@ -888,15 +899,15 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
         :rtype: ``bool``
         """
-        mbpkgid = node.id
+
         result = self.connection.request(
-            '{0}/cloud/server/shutdown/{1}'.format(API_ROOT, mbpkgid),
+            '{0}/cloud/server/shutdown/{1}'.format(self.API_ROOT, node.id),
             method='POST').object
         self.debug_logger(format='Here is the stop call return: {0}'
                           .format(result))
         return NetActuateJobStatus(
             conn=self.connection,
-            node_id=node.id,
+            node=node,
             job_result=result)
 
     def ex_start_node(self, node):
@@ -910,7 +921,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         """
         result = self.connection.request(
             '{0}/cloud/server/start/{1}'
-            .format(API_ROOT, node.id),
+            .format(self.API_ROOT, node.id),
             method='POST'
         ).object
         self.debug_logger(format='Here is the start call return: {0}'
@@ -924,7 +935,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     def ex_reboot_node(self, node):
         result = self.connection.request(
             '{0}/cloud/server/reboot/{1}'
-            .format(API_ROOT, node.id),
+            .format(self.API_ROOT, node.id),
             method='POST').object
 
         return NetActuateJobStatus(
@@ -969,7 +980,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         if self.auth:
             auth = self.auth
         else:
-            auth = kwargs['auth']
+            auth = kwargs.get('auth', None)
 
         ssh_key = None
         password = None
@@ -985,7 +996,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
                 500, "SSH key or Root password is required")
 
         result = self.connection.request('{0}/cloud/server/build'
-                                         .format(API_ROOT),
+                                         .format(self.API_ROOT),
                                          data=json.dumps(params),
                                          method='POST').object
         self.debug_logger(format='Here is the build call return: {0}'
@@ -1007,7 +1018,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
         mbpkgid = node.id
         result = self.connection.request(
-            '{0}/cloud/server/delete/{1}'.format(API_ROOT, mbpkgid),
+            '{0}/cloud/server/delete/{1}'.format(self.API_ROOT, mbpkgid),
             method='POST').object
         self.debug_logger(format='Here is the delete call return: {0}'
                           .format(result))
@@ -1072,7 +1083,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
             extra['fqdn'] = data['fqdn']
         if 'location_id' in data:
             extra['location'] = data['location_id']
-        if 'ip' in data:
+        if 'ip' in data and data['ip']:
             public_ips.append(data['ip'])
 
         node = NetActuateNode(id=data['mbpkgid'], name=data['fqdn'],
@@ -1122,11 +1133,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
                 format='Checking to see if state is {0}'.format(want_state))
             try_node = self.ex_get_node(node.id)
             # NOTE: We should be logging both at the same time but we'll see
-            if job.refresh().is_success:
-                self.local_logger(
-                    level='info',
-                    format='{0} job status is 5 for job id {1}'
-                           .format(job.command, job.job_id))
+            # if job.refresh().is_success:
+            #    self.local_logger(
+            #        level='info',
+            #        format='{0} job status is 5 for job id {1}'
+            #               .format(job.command, job.job_id))
             if try_node.state == want_state:
                 self.local_logger(
                     level='info',
@@ -1216,11 +1227,14 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         changed = False
         if node.state != 'stopped':
             stop_job = self.ex_stop_node(node)
-            if not bool(stop_job._job):
-                raise HostVirtualException(
-                    500,
-                    "Seems we had trouble stopping the node {0}"
-                    .format(node.name))
+            if (getattr(stop_job, '_job', None) is None):
+                changed = False
+                print(stop_job.__dict__, '\n', type(stop_job))
+            # if not bool(stop_job._job):
+            #    raise HostVirtualException(
+            #        500,
+            #        "Seems we had trouble stopping the node {0}"
+            #        .format(node.name))
             else:
                 # wait for the node to say it's stopped.
                 node = self._wait_for_state(
