@@ -19,13 +19,73 @@ except ImportError:
 
 from libcloud.utils.py3 import httplib
 from libcloud.common.base import (
-    ConnectionKey, JsonResponse, ConnectionUserAndKey)
+    ConnectionKey, JsonResponse)
 from libcloud.compute.types import InvalidCredsError
 from libcloud.compute.base import (
     NodeAuthSSHKey, NodeAuthPassword, Node)
 from libcloud.common.types import LibcloudError
 from libcloud.compute.ssh import ParamikoSSHClient
 import paramiko
+
+
+class NAParamikoSSHClient(ParamikoSSHClient):
+
+    def __init__(self, hostname, port=22, username='root', password=None,
+                 key=None, key_files=None, key_material=None, timeout=None,
+                 allow_agent=False):
+        """
+        Authentication is always attempted in the following order:
+
+        - The key passed in (if key is provided)
+        - Any key we can find through an SSH agent (only if no password and
+          key is provided)
+        - Any "id_rsa" or "id_dsa" key discoverable in ~/.ssh/ (only if no
+          password and key is provided)
+        - Plain username/password auth, if a password was given (if password is
+          provided)
+        """
+        if key_files and key_material:
+            raise ValueError(('key_files and key_material arguments are '
+                              'mutually exclusive'))
+
+        super(NAParamikoSSHClient, self).__init__(hostname=hostname, port=port,
+                                                  username=username,
+                                                  password=password,
+                                                  key=key,
+                                                  key_files=key_files,
+                                                  timeout=timeout)
+        self.allow_agent = allow_agent
+
+    def connect(self):
+        conninfo = {'hostname': self.hostname,
+                    'port': self.port,
+                    'username': self.username,
+                    'allow_agent': self.allow_agent,
+                    'look_for_keys': self.allow_agent}
+
+        if self.password:
+            conninfo['password'] = self.password
+
+        if self.key_files:
+            conninfo['key_filename'] = self.key_files
+
+        if self.key_material:
+            conninfo['pkey'] = self._get_pkey_object(key=self.key_material)
+
+        if not self.password and not (self.key_files or self.key_material):
+            conninfo['allow_agent'] = True
+            conninfo['look_for_keys'] = True
+
+        if self.timeout:
+            conninfo['timeout'] = self.timeout
+
+        extra = {'_hostname': self.hostname, '_port': self.port,
+                 '_username': self.username, '_timeout': self.timeout}
+        self.logger.debug('Connecting to server', extra=extra)
+
+        self.client.connect(**conninfo)
+        return True
+
 
 # Version 1
 API_VARS = {
@@ -126,11 +186,13 @@ class NetActuateNode(Node):
 
     def __init__(self, *args, **kwargs):
         self._auth = kwargs.pop("auth", None)
-        self._ssh_user = kwargs.pop("ssh_user", None)
+        self._ssh_user = kwargs.pop("ssh_user", "root")
+        self._ssh_port = kwargs.pop("ssh_port", "22")
+        self.ssh_agent = kwargs.pop("ssh_agent", False)
         if self._auth is not None:
             self._set_auth_method(self._auth)
         else:
-            self.auth_method = None
+            self._set_auth_method(None)
         self._ssh_client = None
         Node.__init__(self, *args, **kwargs)
 
@@ -151,18 +213,25 @@ class NetActuateNode(Node):
         except Exception:
             return False
 
+        client_args = {
+            "username": self._ssh_user,
+            "port": self._ssh_port,
+            "allow_agent": self.ssh_agent
+        }
+
         if self.auth_method == "pubkey":
 
-            self._ssh_client = ParamikoSSHClient(
-                hostname, key=getattr(self._auth, "pubkey"),
-                username=self._ssh_user
-            )
+            client_args.update({'allow_agent': True})
+            self._ssh_client = NAParamikoSSHClient(hostname, **client_args)
+
         elif self.auth_method == "password":
-            self._ssh_client = ParamikoSSHClient(
-                hostname,
-                username=self._ssh_user,
-                password=getattr(self._auth, "password"),
-            )
+
+            client_args.update(
+                {'password': getattr(self._auth, "password")})
+            self._ssh_client = NAParamikoSSHClient(hostname, **client_args)
+
+        if self._ssh_client.client.get_transport() is None:
+            self._ssh_client.connect()
         return self._ssh_client
 
     @property
@@ -190,6 +259,8 @@ class NetActuateNode(Node):
             self.auth_method = "password"
         elif isinstance(auth, NodeAuthSSHKey):
             self.auth_method = "pubkey"
+        elif auth is None:
+            self.auth_method = None
         else:
             raise paramiko.ssh_exception.BadAuthenticationType(
                 "Only NodeAuthPassword and NodeAuthSSHKey are allowed"
@@ -247,11 +318,15 @@ class NetActuateFromDict(object):
 class NetActuateJobStatus(object):
     API_ROOT = API_VARS['v2']['API_ROOT']
 
-    def __init__(self, conn=None, node=None, job_result={}):
+    def __init__(
+            self,
+            conn=None,
+            node=None,
+            job_result={}):
         self.conn = conn
         self.node = node
         self.job_result = NetActuateFromDict(job_result)
-        # self._job = self._get_job_status()
+        self._job = self._get_job_status()
 
     @property
     def status(self):
@@ -270,6 +345,14 @@ class NetActuateJobStatus(object):
         return getattr(self._job, "ts_insert", 0)
 
     @property
+    def started(self):
+        return getattr(self._job, "ts_start", 0)
+
+    @property
+    def finished(self):
+        return getattr(self._job, "ts_finish", 0)
+
+    @property
     def is_success(self):
         return self.status == 5
 
@@ -282,11 +365,12 @@ class NetActuateJobStatus(object):
         return self.status == 6
 
     def _get_job_status(self):
-        return self.job_result
-        params = {"mbpkgid": self.node.id, "job_id": self.job_result.id}
         result = self.conn.request(
-            self.API_ROOT + "/cloud/serverjob", params=params).object
-        return NetActuateFromDict(result)
+            "{0}/cloud/jobstatus/{1}/{2}"
+            .format(self.API_ROOT,
+                    self.job_result.queue_name,
+                    self.job_result.id)).object
+        return NetActuateFromDict(result) if result else {}
 
     def refresh(self):
         self._job = self._get_job_status()

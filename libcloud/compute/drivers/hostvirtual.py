@@ -533,14 +533,16 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
     def __init__(self, key, secure=True, host=None, port=None,
                  logger=dummyLogger, debug=False, auth=None,
-                 ssh_key_file=None, ssh_user='root',
-                 user_password=None, api_version='2.0'):
+                 ssh_key_file=None, ssh_user='root', ssh_port='22',
+                 user_password=None, ssh_agent=False, api_version='2.0'):
         self.conn = requests.Session()
         self.debug = debug
         self.local_logger = logger
         self.debug_logger = logger
         self._ssh_user = ssh_user
         self._ssh_key_file = ssh_key_file
+        self._ssh_port = ssh_port
+        self._ssh_agent = ssh_agent
         self.auth = auth
         if self.auth is None:
             if ssh_key_file is not None:
@@ -887,7 +889,10 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         """
         result = self.connection.request(
             '{0}/cloud/server/{1}'.format(self.API_ROOT, node_id)).object
-        node = self._to_node(result)
+        if isinstance(result, list) and len(result) > 0:
+            node = self._to_node(result[0])
+        elif isinstance(result, dict):
+            node = self._to_node(result)
         return node
 
     def ex_stop_node(self, node):
@@ -929,7 +934,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
         return NetActuateJobStatus(
             conn=self.connection,
-            node_id=node.id,
+            node=node,
             job_result=result)
 
     def ex_reboot_node(self, node):
@@ -1091,7 +1096,8 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
                               private_ips=private_ips, extra=extra,
                               driver=self.connection.driver,
                               ssh_user=self._ssh_user,
-                              auth=self.auth)
+                              ssh_agent=self._ssh_agent,
+                              auth=self.auth, ssh_port=self._ssh_port)
         return node
 
     def _wait_for_unlinked(self, node, timeout=600, interval=10):
