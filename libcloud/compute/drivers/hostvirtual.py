@@ -73,6 +73,9 @@ HOSTNAME_RE = r'({0}\.)*{0}$'.format(NAME_RE)
 def auth_from_path(key_file):
     """Example key_file
     /home/user/.ssh/id_rsa.pub
+
+    :param key_file: 
+
     """
     with open(key_file) as f:
         key = f.read()
@@ -81,6 +84,13 @@ def auth_from_path(key_file):
 
 
 class HostVirtualNodeDriver(NodeDriver):
+    """Version selector driver
+    
+    This driver is the main driver to be used since
+    it is here to allow one to select which API version to use
+
+
+    """
     name = 'HostVirtual'
     website = 'http://www.hostvirtual.com'
 
@@ -99,6 +109,12 @@ class HostVirtualNodeDriver(NodeDriver):
 
 
 class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
+    """This is the old version of our driver
+    
+    It has been patched a bit to fix some bugs.
+
+
+    """
     type = Provider.HOSTVIRTUAL
     name = 'HostVirtual (API V1.0)'
     connectionCls = HostVirtualComputeConnection
@@ -115,6 +131,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         )
 
     def list_nodes(self):
+        """ """
         try:
             result = self.connection.request(
                 '{0}/cloud/servers/'
@@ -129,6 +146,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return nodes
 
     def list_sizes(self, location=None):
+        """
+
+        :param location: Default value = None)
+
+        """
         if location is None:
             location = ''
         result = self.connection.request(
@@ -148,6 +170,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return sizes
 
     def list_locations(self):
+        """ """
         result = self.connection.request(
             '{0}/cloud/locations/'
             .format(self.API_ROOT)
@@ -176,10 +199,14 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return sorted(locations, key=lambda x: int(x.id))
 
     def create_node(self, name, image, size, **kwargs):
-        """
-        Creates a node
-
+        """Creates a node
+        
         Example of node creation with ssh key deployed:
+
+        :param name: param image:
+        :param size: param **kwargs:
+        :param image: 
+        :param **kwargs: 
 
         >>> from libcloud.compute.base import NodeAuthSSHKey
         >>> key = open('/home/user/.ssh/id_rsa.pub').read()
@@ -230,6 +257,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return node
 
     def reboot_node(self, node):
+        """
+
+        :param node: 
+
+        """
         mbpkgid = node.id
         result = self.connection.request(
             '{0}/cloud/server/reboot/{1}'
@@ -239,6 +271,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return bool(result)
 
     def destroy_node(self, node):
+        """
+
+        :param node: 
+
+        """
         mbpkgid = node.id
         result = self.connection.request(
             '{0}/cloud/cancel/{1}'
@@ -248,6 +285,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return bool(result)
 
     def list_images(self):
+        """ """
         result = self.connection.request(
             '{0}/cloud/images/'.format(self.API_ROOT)
         ).object
@@ -263,10 +301,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return images
 
     def ex_list_packages(self):
-        """
-        List the server packages.
-
-        """
+        """List the server packages."""
 
         try:
             result = self.connection.request(
@@ -280,13 +315,10 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return pkgs
 
     def ex_order_package(self, size):
-        """
-        Order a server package.
+        """Order a server package.
 
-        :param      size:
-        :type       node: :class:`NodeSize`
+        :param size: type       node: :class:`NodeSize`
 
-        :rtype: ``str``
         """
         plan = size.name
         return self.connection.request(
@@ -296,13 +328,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         ).object
 
     def ex_cancel_package(self, node):
-        """
-        Cancel a server package.
+        """Cancel a server package.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``str``
         """
 
         result = self.connection.request(
@@ -314,13 +344,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return result
 
     def ex_unlink_package(self, node):
-        """
-        Unlink a server package from location.
+        """Unlink a server package from location.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``str``
         """
 
         result = self.connection.request(
@@ -332,13 +360,12 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return result
 
     def ex_get_node(self, node):
-        """
-        Get a single node.
+        """Get a single node.
 
-        :param      node_id: id of the node that we need the node object for
-        :type       node_id: ``str``
+        :param node_id: id of the node that we need the node object for
+        :type node_id: str``
+        :param node: 
 
-        :rtype: :class:`Node`
         """
 
         result = self.connection.request(
@@ -349,13 +376,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return node
 
     def ex_stop_node(self, node):
-        """
-        Stop a node.
+        """Stop a node.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``bool``
         """
         result = self.connection.request(
             '{0}/cloud/server/shutdown/{1}'
@@ -366,13 +391,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return bool(result)
 
     def ex_start_node(self, node):
-        """
-        Start a node.
+        """Start a node.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``bool``
         """
         result = self.connection.request(
             '{0}/cloud/server/start/{1}'
@@ -383,23 +406,14 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return bool(result)
 
     def ex_provision_node(self, **kwargs):
-        """
-        Provision a server on a VR package and get it booted
-
+        """Provision a server on a VR package and get it booted
+        
         :keyword node: node which should be used
-        :type    node: :class:`Node`
 
-        :keyword image: The distribution to deploy on your server (mandatory)
-        :type    image: :class:`NodeImage`
+        :param **kwargs: 
+        :returns: Node representing the newly built server
+        :rtype: class:`Node`
 
-        :keyword auth: an SSH key or root password (mandatory)
-        :type    auth: :class:`NodeAuthSSHKey` or :class:`NodeAuthPassword`
-
-        :keyword location: which datacenter to create the server in
-        :type    location: :class:`NodeLocation`
-
-        :return: Node representing the newly built server
-        :rtype: :class:`Node`
         """
 
         node = kwargs['node']
@@ -443,13 +457,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
             self.ex_cancel_package(node)
 
     def ex_delete_node(self, node):
-        """
-        Delete a node.
+        """Delete a node.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``bool``
         """
 
         result = self.connection.request(
@@ -461,6 +473,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         return bool(result)
 
     def _to_node(self, data):
+        """
+
+        :param data: 
+
+        """
         state = HV_NODE_STATE_MAP[data['status']]
         public_ips = []
         private_ips = []
@@ -484,17 +501,17 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
 
     def _wait_for_node(self, node_id, timeout=30, interval=5.0):
         """
+
         :param node_id: ID of the node to wait for.
-        :type node_id: ``int``
-
-        :param timeout: Timeout (in seconds).
-        :type timeout: ``int``
-
+        :type node_id: int``
+        :param timeout: Timeout (in seconds). (Default value = 30)
+        :type timeout: int``
         :param interval: How long to wait (in seconds) between each attempt.
-        :type interval: ``float``
+            (Default value = 5.0)
+        :type interval: float``
+        :returns: Node representing the newly built server
+        :rtype: class:`Node`
 
-        :return: Node representing the newly built server
-        :rtype: :class:`Node`
         """
         # poll until we get a node
         for i in range(0, timeout, int(interval)):
@@ -507,6 +524,11 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
         raise HostVirtualException(412, 'Timeout on getting node details')
 
     def _is_valid_fqdn(self, fqdn):
+        """
+
+        :param fqdn: 
+
+        """
         if len(fqdn) > 255:
             raise HostVirtualException(
                 500, "Need a valid FQDN (e.g, hostname.example.com)")
@@ -524,6 +546,7 @@ class HostVirtualNodeDriver_v1(HostVirtualNodeDriver):
 # Only porting features above to fix bugs, nothing else.
 ######
 class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
+    """ """
     type = Provider.HOSTVIRTUAL
     name = 'HostVirtual (API V2.0)'
     website = 'http://www.netactuate.com'
@@ -554,6 +577,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
             key=key, secure=secure, host=host, port=port)
 
     def list_nodes(self):
+        """ """
         try:
             result = self.connection.request(
                 '{0}/cloud/servers/'.format(self.API_ROOT)
@@ -567,6 +591,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return nodes
 
     def list_locations(self):
+        """ """
         result = self.connection.request(
             '{0}/cloud/locations/'.format(self.API_ROOT)
         ).object
@@ -596,6 +621,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return sorted(locations, key=lambda x: int(x.id))
 
     def list_sizes(self, location=None):
+        """
+
+        :param location: Default value = None)
+
+        """
         if location is None:
             location = ''
         result = self.connection.request(
@@ -615,6 +645,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return sizes
 
     def list_images(self):
+        """ """
         result = self.connection.request(
             '{0}/cloud/images/'.format(self.API_ROOT)
         ).object
@@ -630,46 +661,40 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return images
 
     def create_node(self, timeout=600, **kwargs):
-        """
-        Creates a node
-
+        """Creates a node
+        
         Example of node creation with ssh key deployed:
 
-        Arguments:  name        str:    fqdn for host
-                    image       obj:    NodeImage instance
-                    size        obj:    NodeSize instance
-                    location    obj:    NodeLocation instance
-                    auth        obj:    NodeAuthSSHKey instance
-                    mbpkgid     int:    mbpkgid to build, otherwise
-                                        we have to order a package
-                                        which is not available right now
-                    timeout     int:    how long to wait for shit to happen
+        :param image: obj
+        :param size: obj
+        :param location: obj
+        :param auth: obj
+        :param mbpkgid: int
+        :param we: have to order a package
+        :param which: is not available right now
+        :param timeout: int (Default value = 600)
+        :param Example: param import: driver and api key
+        :param from: hv_libcloud import HostVirtualNodeDriver
+        :param from: config import cust_api
+        :param and: that
+        :param conn: HostVirtualNodeDriver
+        :param cust_api: param ssh_key_file: home
+        :param get: an image object
+        :param image: conn
+        :param get: an size object
+        :param size: conn
+        :param get: an location object
+        :param location: conn
+        :param set: a name
+        :param name: qa
+        :param set: mbpkgid
+        :param mbpkgid: 204581
+        :param create: the node
+        :param node: conn
+        :param name: name
+        :param size: size
+        :param **kwargs: 
 
-        Example:
-            # import driver and api key
-            from hv_libcloud import HostVirtualNodeDriver
-            from config import cust_api
-
-            # and that's it, connect, also providing an ssh pub key file
-            conn = HostVirtualNodeDriver(
-                cust_api,
-                ssh_key_file='/home/me/.ssh/id_rsa.pub')
-            )
-
-            # get an image object
-            image = conn.list_images()[1]
-            # get an size object
-            size = conn.list_sizes()[0]
-            # get an location object
-            location = conn.list_locations()[21]
-            # set a name
-            name = 'qa-test-one.vr.org'
-            # set mbpkgid
-            mbpkgid = 204581
-            # create the node (domU)
-            node = conn.create_node(
-                name=name, image=image, mbpkgid=mbpkgid,
-                size=size, location=location)
         """
         # TODO Do all the parameter checks, except for auth...
         # log where we are
@@ -744,12 +769,17 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         """Main function call that will check desired state
         and call the appropriate function and handle the respones
         back to main.
-
+        
         The called functions will check node state and call
         state altering functions as needed.
-
+        
         Returns:    changed bool    whether or not a change of state happend
                     node    obj     instance of Node
+
+        :param node: param want_state:  (Default value = "running")
+        :param timeout: Default value = 600)
+        :param want_state:  (Default value = "running")
+
         """
         # set default changed to False
         changed = False
@@ -799,10 +829,7 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return changed, node
 
     def ex_list_packages(self):
-        """
-        List the server packages.
-
-        """
+        """List the server packages."""
 
         try:
             result = self.connection.request(
@@ -817,13 +844,10 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return pkgs
 
     def ex_order_package(self, size):
-        """
-        Order a server package.
+        """Order a server package.
 
-        :param      size:
-        :type       node: :class:`NodeSize`
+        :param size: type       node: :class:`NodeSize`
 
-        :rtype: ``str``
         """
 
         plan = size.name
@@ -834,13 +858,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return pkg
 
     def ex_cancel_package(self, node):
-        """
-        Cancel a server package.
+        """Cancel a server package.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``str``
         """
 
         mbpkgid = node.id
@@ -853,13 +875,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
             job_result=result)
 
     def ex_unlink_package(self, node):
-        """
-        Unlink a server package from location.
+        """Unlink a server package from location.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``str``
         """
 
         mbpkgid = node.id
@@ -871,6 +891,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return bool(result)
 
     def node_exists(self, node):
+        """
+
+        :param node: 
+
+        """
         exists = True
         try:
             self.ex_get_node(node.id)
@@ -879,13 +904,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return exists
 
     def ex_get_node(self, node_id):
-        """
-        Get a single node.
+        """Get a single node.
 
-        :param      node_id: id of the node to retrieve
-        :type       node_id: ``str``
+        :param node_id: id of the node to retrieve
+        :type node_id: str``
 
-        :rtype: :class:`Node`
         """
         result = self.connection.request(
             '{0}/cloud/server/{1}'.format(self.API_ROOT, node_id)).object
@@ -896,13 +919,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         return node
 
     def ex_stop_node(self, node):
-        """
-        Stop a node.
+        """Stop a node.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``bool``
         """
 
         result = self.connection.request(
@@ -916,13 +937,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
             job_result=result)
 
     def ex_start_node(self, node):
-        """
-        Start a node.
+        """Start a node.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``bool``
         """
         result = self.connection.request(
             '{0}/cloud/server/start/{1}'
@@ -938,6 +957,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
             job_result=result)
 
     def ex_reboot_node(self, node):
+        """
+
+        :param node: 
+
+        """
         result = self.connection.request(
             '{0}/cloud/server/reboot/{1}'
             .format(self.API_ROOT, node.id),
@@ -949,23 +973,14 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
             job_result=result)
 
     def ex_provision_node(self, **kwargs):
-        """
-        Provision a server on a VR package and get it booted
-
+        """Provision a server on a VR package and get it booted
+        
         :keyword node: node which should be used
-        :type    node: :class:`Node`
 
-        :keyword image: The distribution to deploy on your server (mandatory)
-        :type    image: :class:`NodeImage`
+        :param **kwargs: 
+        :returns: Node representing the newly built server
+        :rtype: class:`Node`
 
-        :keyword auth: an SSH key or root password (mandatory)
-        :type    auth: :class:`NodeAuthSSHKey` or :class:`NodeAuthPassword`
-
-        :keyword location: which datacenter to create the server in
-        :type    location: :class:`NodeLocation`
-
-        :return: Node representing the newly built server
-        :rtype: :class:`Node`
         """
 
         node = kwargs['node']
@@ -1012,13 +1027,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
             job_result=result)
 
     def ex_delete_node(self, node):
-        """
-        Delete a node.
+        """Delete a node.
 
-        :param      node: Node which should be used
-        :type       node: :class:`Node`
+        :param node: Node which should be used
+        :type node: class:`Node`
 
-        :rtype: ``bool``
         """
 
         mbpkgid = node.id
@@ -1035,9 +1048,13 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     # TODO: Unused
     def _get_location(avail_locs=[], want_location=None):
         """Check if a location is allowed/available
-
+        
         Raises an exception if we can't use it
         Returns a location object otherwise
+
+        :param avail_locs: Default value = [])
+        :param want_location: Default value = None)
+
         """
         location = None
         loc_possible_list = [loc for loc in avail_locs
@@ -1055,9 +1072,13 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     # TODO: Unused
     def _get_os(avail_oses=[], want_os=None):
         """Check if provided os is allowed/available
-
+        
         Raises an exception if we can't use it
         Returns an image/OS object otherwise
+
+        :param avail_oses: Default value = [])
+        :param want_os: Default value = None)
+
         """
         image = None
         os_possible_list = [opsys for opsys in avail_oses
@@ -1075,6 +1096,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         ##
 
     def _to_node(self, data):
+        """
+
+        :param data: 
+
+        """
         state = NA_NODE_STATE_MAP[data['status']]
         public_ips = []
         private_ips = []
@@ -1102,13 +1128,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
     def _wait_for_unlinked(self, node, timeout=600, interval=10):
         """Special state check for making sure a node is unlinked
-        Arguments:
-            node:               obj     Node object
-            timeout:            int     timeout in seconds
-            interval:           float   sleep time between loops
 
-        Return:     Bool        True if unlinked
-                    Exception   raised if not unlinked
+        :param node: obj     Node object
+        :param timeout: int     timeout in seconds (Default value = 600)
+        :param interval: float   sleep time between loops (Default value = 10)
+
         """
         for i in range(0, timeout, int(interval)):
             if not self.node_exists(node.id):
@@ -1124,11 +1148,13 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     def _wait_for_state(self, node, want_state,
                         job=None, timeout=600, interval=10):
         """Called after do_build_node to wait to make sure it built OK
-        Arguments:
-            node:               obj     Node object
-            timeout:            int     timeout in seconds
-            interval:           float   sleep time between loops
-            want_state:         string  string of the desired state
+
+        :param node: obj     Node object
+        :param timeout: int     timeout in seconds (Default value = 600)
+        :param interval: float   sleep time between loops (Default value = 10)
+        :param want_state: string  string of the desired state
+        :param job: Default value = None)
+
         """
         if job is None:
             raise AttributeError("Job object required")
@@ -1157,17 +1183,17 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
     def _wait_for_node(self, node_id, timeout=600, interval=5.0):
         """
+
         :param node_id: ID of the node to wait for.
-        :type node_id: ``int``
-
-        :param timeout: Timeout (in seconds).
-        :type timeout: ``int``
-
+        :type node_id: int``
+        :param timeout: Timeout (in seconds). (Default value = 600)
+        :type timeout: int``
         :param interval: How long to wait (in seconds) between each attempt.
-        :type interval: ``float``
+            (Default value = 5.0)
+        :type interval: float``
+        :returns: Node representing the newly built server
+        :rtype: class:`Node`
 
-        :return: Node representing the newly built server
-        :rtype: :class:`Node`
         """
         # poll until we get a node
         for i in range(0, timeout, int(interval)):
@@ -1180,6 +1206,11 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
         raise HostVirtualException(412, 'Timeout on getting node details')
 
     def _is_valid_fqdn(self, fqdn):
+        """
+
+        :param fqdn: 
+
+        """
         if len(fqdn) > 255:
             raise HostVirtualException(
                 500, "Need a valid FQDN (e.g, hostname.example.com)")
@@ -1194,6 +1225,10 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     def _ensure_node_terminated(self, node, timeout=600):
         """Ensure the node is not installed,
         uninstall it if it is installed
+
+        :param node: param timeout:  (Default value = 600)
+        :param timeout:  (Default value = 600)
+
         """
         # log where we are
         self.local_logger('info',
@@ -1225,6 +1260,10 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     def _ensure_node_stopped(self, node, timeout=600):
         """Called when we want to just make sure that a node is
         NOT running
+
+        :param node: param timeout:  (Default value = 600)
+        :param timeout:  (Default value = 600)
+
         """
         # log where we are
         self.local_logger('info',
@@ -1251,6 +1290,10 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     def _ensure_node_unlinked(self, node, timeout=600):
         """Called when we want to ensure the node has been unlinked
         This will unlink it if it exists.
+
+        :param node: param timeout:  (Default value = 600)
+        :param timeout:  (Default value = 600)
+
         """
         # log where we are
         self.local_logger(
@@ -1299,6 +1342,10 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
     def _ensure_node_running(self, node, timeout=600):
         """Called when we want to just make sure the node is running
         This will build it if it has enough information
+
+        :param node: param timeout:  (Default value = 600)
+        :param timeout:  (Default value = 600)
+
         """
         # log where we are
         self.local_logger(
