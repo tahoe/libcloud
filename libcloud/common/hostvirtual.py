@@ -29,6 +29,7 @@ import paramiko
 
 
 class NAParamikoSSHClient(ParamikoSSHClient):
+    """ """
 
     def __init__(self, hostname, port=22, username='root', password=None,
                  key=None, key_files=None, key_material=None, timeout=None,
@@ -57,6 +58,7 @@ class NAParamikoSSHClient(ParamikoSSHClient):
         self.allow_agent = allow_agent
 
     def connect(self):
+        """ """
         conninfo = {'hostname': self.hostname,
                     'port': self.port,
                     'username': self.username,
@@ -101,6 +103,7 @@ API_VARS = {
 
 
 class HostVirtualException(LibcloudError):
+    """ """
     def __init__(self, code, message):
         self.code = code
         self.message = message
@@ -115,16 +118,23 @@ class HostVirtualException(LibcloudError):
 
 
 class HostVirtualConnection(ConnectionKey):
+    """ """
     host = API_VARS['v1']['API_HOST']
 
     allow_insecure = False
 
     def add_default_params(self, params):
+        """
+
+        :param params: 
+
+        """
         params["key"] = self.key
         return params
 
 
 class HostVirtualResponse(JsonResponse):
+    """ """
     valid_response_codes = [
         httplib.OK,
         httplib.ACCEPTED,
@@ -133,6 +143,7 @@ class HostVirtualResponse(JsonResponse):
     ]
 
     def parse_body(self):
+        """ """
         if not self.body:
             return None
 
@@ -140,6 +151,7 @@ class HostVirtualResponse(JsonResponse):
         return data
 
     def parse_error(self):
+        """ """
         data = self.parse_body()
 
         if self.status == httplib.UNAUTHORIZED:
@@ -155,24 +167,33 @@ class HostVirtualResponse(JsonResponse):
         return self.body
 
     def success(self):
+        """ """
         return self.status in self.valid_response_codes
 
 
 class HostVirtualComputeResponse(HostVirtualResponse):
+    """ """
     pass
 
 
 class HostVirtualComputeConnection(HostVirtualConnection):
+    """ """
     responseCls = HostVirtualComputeResponse
 
 
 # Version 2
 class NetActuateConnection(ConnectionKey):
+    """ """
     host = API_VARS['v2']['API_HOST']
 
     allow_insecure = True
 
     def add_default_params(self, params):
+        """
+
+        :param params: 
+
+        """
         params["key"] = self.key
         return params
 
@@ -182,6 +203,8 @@ class NetActuateNode(Node):
     with pytest-testinfra module. All it does is provide
     a host spec for sshing to Nodes.
     Not required to use.
+
+
     """
 
     def __init__(self, *args, **kwargs):
@@ -198,6 +221,7 @@ class NetActuateNode(Node):
 
     @property
     def ssh(self):
+        """ """
         # just return the _ssh client if e have it already
         if self._ssh_client is not None:
             return self._ssh_client
@@ -236,11 +260,16 @@ class NetActuateNode(Node):
 
     @property
     def auth(self):
+        """ """
         return self._auth
 
     @auth.setter
     def auth(self, auth_type):
-        """Only allow user to set auth as specific type"""
+        """Only allow user to set auth as specific type
+
+        :param auth_type: 
+
+        """
         if (isinstance(auth_type, NodeAuthPassword)) or (
             isinstance(auth_type, NodeAuthSSHKey)
         ):
@@ -255,6 +284,11 @@ class NetActuateNode(Node):
             )
 
     def _set_auth_method(self, auth):
+        """
+
+        :param auth: 
+
+        """
         if isinstance(auth, NodeAuthPassword):
             self.auth_method = "password"
         elif isinstance(auth, NodeAuthSSHKey):
@@ -268,6 +302,7 @@ class NetActuateNode(Node):
 
 
 class NetActuateResponse(JsonResponse):
+    """ """
     valid_response_codes = [
         httplib.OK,
         httplib.ACCEPTED,
@@ -276,6 +311,7 @@ class NetActuateResponse(JsonResponse):
     ]
 
     def parse_body(self):
+        """ """
 
         if not self.body:
             return None
@@ -284,6 +320,7 @@ class NetActuateResponse(JsonResponse):
         return data
 
     def parse_error(self):
+        """ """
         data = self.parse_body()
 
         if self.status == httplib.UNAUTHORIZED:
@@ -299,6 +336,7 @@ class NetActuateResponse(JsonResponse):
         return self.body
 
     def success(self):
+        """ """
         return self.status in self.valid_response_codes
 
 
@@ -306,6 +344,8 @@ class NetActuateFromDict(object):
     """Takes any dict and creates an object out of it
     May behave weirdly if you do multiple level dicts
     So don't...
+
+
     """
 
     def __init__(self, kwargs):
@@ -316,6 +356,7 @@ class NetActuateFromDict(object):
 
 
 class NetActuateJobStatus(object):
+    """ """
     API_ROOT = API_VARS['v2']['API_ROOT']
 
     def __init__(
@@ -330,41 +371,51 @@ class NetActuateJobStatus(object):
 
     @property
     def status(self):
+        """ """
         return int(self._job.status)
 
     @property
     def job_id(self):
+        """ """
         return getattr(self._job, "id", 0)
 
     @property
     def command(self):
+        """ """
         return getattr(self._job, "command", 0)
 
     @property
     def inserted(self):
+        """ """
         return getattr(self._job, "ts_insert", 0)
 
     @property
     def started(self):
+        """ """
         return getattr(self._job, "ts_start", 0)
 
     @property
     def finished(self):
+        """ """
         return getattr(self._job, "ts_finish", 0)
 
     @property
     def is_success(self):
+        """ """
         return self.status == 5
 
     @property
     def is_processing(self):
+        """ """
         return self.status == 3
 
     @property
     def is_failure(self):
+        """ """
         return self.status == 6
 
     def _get_job_status(self):
+        """ """
         result = self.conn.request(
             "{0}/cloud/jobstatus/{1}/{2}"
             .format(self.API_ROOT,
@@ -373,17 +424,26 @@ class NetActuateJobStatus(object):
         return NetActuateFromDict(result) if result else {}
 
     def refresh(self):
+        """ """
         self._job = self._get_job_status()
         return self
 
 
 class NetActuateComputeResponse(NetActuateResponse):
+    """ """
     pass
 
 
 class NetActuateComputeConnection(NetActuateConnection):
+    """ """
     responseCls = NetActuateComputeResponse
 
 
 def dummyLogger(*args, **kwargs):
+    """
+
+    :param *args: 
+    :param **kwargs: 
+
+    """
     pass
