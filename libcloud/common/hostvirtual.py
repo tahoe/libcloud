@@ -29,7 +29,7 @@ import paramiko
 
 
 class NAParamikoSSHClient(ParamikoSSHClient):
-    """ """
+    """SSH Client for connecting to a node from a Node object"""
 
     def __init__(self, hostname, port=22, username='root', password=None,
                  key=None, key_files=None, key_material=None, timeout=None,
@@ -58,7 +58,7 @@ class NAParamikoSSHClient(ParamikoSSHClient):
         self.allow_agent = allow_agent
 
     def connect(self):
-        """ """
+        """Initiate a connection"""
         conninfo = {'hostname': self.hostname,
                     'port': self.port,
                     'username': self.username,
@@ -81,10 +81,6 @@ class NAParamikoSSHClient(ParamikoSSHClient):
         if self.timeout:
             conninfo['timeout'] = self.timeout
 
-        extra = {'_hostname': self.hostname, '_port': self.port,
-                 '_username': self.username, '_timeout': self.timeout}
-        self.logger.debug('Connecting to server', extra=extra)
-
         self.client.connect(**conninfo)
         return True
 
@@ -103,7 +99,11 @@ API_VARS = {
 
 
 class HostVirtualException(LibcloudError):
-    """ """
+    """General Exception
+
+    Example:
+        raise HostVirtualException(500, "oops")
+    """
     def __init__(self, code, message):
         self.code = code
         self.message = message
@@ -126,7 +126,7 @@ class HostVirtualConnection(ConnectionKey):
     def add_default_params(self, params):
         """
 
-        :param params: 
+        :param params: Add default params to connection
 
         """
         params["key"] = self.key
@@ -191,7 +191,7 @@ class NetActuateConnection(ConnectionKey):
     def add_default_params(self, params):
         """
 
-        :param params: 
+        :param params: Add default params to connection
 
         """
         params["key"] = self.key
@@ -267,7 +267,8 @@ class NetActuateNode(Node):
     def auth(self, auth_type):
         """Only allow user to set auth as specific type
 
-        :param auth_type: 
+        :param auth_type: Set the auth type
+        :type auth_type: One of NodeAuthPassword or NodeAuthSSHKey
 
         """
         if (isinstance(auth_type, NodeAuthPassword)) or (
@@ -286,7 +287,8 @@ class NetActuateNode(Node):
     def _set_auth_method(self, auth):
         """
 
-        :param auth: 
+        :param auth: Set the auth_method
+        :type auth: NodeAuthPassword or NodeAuthSSHKey
 
         """
         if isinstance(auth, NodeAuthPassword):
@@ -302,7 +304,7 @@ class NetActuateNode(Node):
 
 
 class NetActuateResponse(JsonResponse):
-    """ """
+    """Sets options for base Response class"""
     valid_response_codes = [
         httplib.OK,
         httplib.ACCEPTED,
@@ -311,7 +313,7 @@ class NetActuateResponse(JsonResponse):
     ]
 
     def parse_body(self):
-        """ """
+        """Return a json string of the body"""
 
         if not self.body:
             return None
@@ -320,7 +322,7 @@ class NetActuateResponse(JsonResponse):
         return data
 
     def parse_error(self):
-        """ """
+        """Return and exception with a parsed message"""
         data = self.parse_body()
 
         if self.status == httplib.UNAUTHORIZED:
@@ -440,10 +442,10 @@ class NetActuateComputeConnection(NetActuateConnection):
 
 
 def dummyLogger(*args, **kwargs):
-    """
+    """Dummy Logger for tossing away data
 
-    :param *args: 
-    :param **kwargs: 
+    :param *args: Just accept any arguments
+    :param **kwargs: Just accept any arguments
 
     """
     pass
