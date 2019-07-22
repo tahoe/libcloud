@@ -1216,9 +1216,9 @@ class HostVirtualNodeDriver_v2(HostVirtualNodeDriver):
 
         """
         location = None
-        loc_possible_list = [loc for loc in avail_locs
-                             if (loc.name == want_location or
-                                 loc.id == want_location)]
+        loc_possible_list = [
+            loc for loc in avail_locs if loc.name == want_location or loc.id == want_location
+        ]
 
         if not loc_possible_list:
             raise HostVirtualException(
