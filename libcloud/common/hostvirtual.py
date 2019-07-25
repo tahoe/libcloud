@@ -17,6 +17,7 @@ try:
 except ImportError:
     import json
 
+import paramiko
 from libcloud.utils.py3 import httplib
 from libcloud.common.base import (
     ConnectionKey, JsonResponse)
@@ -25,7 +26,6 @@ from libcloud.compute.base import (
     NodeAuthSSHKey, NodeAuthPassword, Node)
 from libcloud.common.types import LibcloudError
 from libcloud.compute.ssh import ParamikoSSHClient
-import paramiko
 
 
 class NAParamikoSSHClient(ParamikoSSHClient):
@@ -42,8 +42,8 @@ class NAParamikoSSHClient(ParamikoSSHClient):
           key is provided)
         - Any "id_rsa" or "id_dsa" key discoverable in ~/.ssh/ (only if no
           password and key is provided)
-        - Plain username/password auth, if a password was given (if password is
-          provided)
+        - Plain username/password auth, if a password was given
+          (if password is provided)
         """
         if key_files and key_material:
             raise ValueError(('key_files and key_material arguments are '
@@ -108,6 +108,7 @@ class HostVirtualException(LibcloudError):
         self.code = code
         self.message = message
         self.args = (code, message)
+        super().__init__()
 
     def __str__(self):
         return self.__repr__()
@@ -118,7 +119,8 @@ class HostVirtualException(LibcloudError):
 
 
 class HostVirtualConnection(ConnectionKey):
-    """ """
+    """HV connection class
+    """
     host = API_VARS['v1']['API_HOST']
 
     allow_insecure = False
@@ -134,7 +136,7 @@ class HostVirtualConnection(ConnectionKey):
 
 
 class HostVirtualResponse(JsonResponse):
-    """ """
+    """HV Response class"""
     valid_response_codes = [
         httplib.OK,
         httplib.ACCEPTED,
@@ -143,7 +145,7 @@ class HostVirtualResponse(JsonResponse):
     ]
 
     def parse_body(self):
-        """ """
+        """Method override"""
         if not self.body:
             return None
 
@@ -151,7 +153,7 @@ class HostVirtualResponse(JsonResponse):
         return data
 
     def parse_error(self):
-        """ """
+        """Method override"""
         data = self.parse_body()
 
         if self.status == httplib.UNAUTHORIZED:
@@ -167,23 +169,22 @@ class HostVirtualResponse(JsonResponse):
         return self.body
 
     def success(self):
-        """ """
+        """Method override"""
         return self.status in self.valid_response_codes
 
 
 class HostVirtualComputeResponse(HostVirtualResponse):
-    """ """
-    pass
+    """HV Compute Response"""
 
 
 class HostVirtualComputeConnection(HostVirtualConnection):
-    """ """
+    """HV Compute Connection"""
     responseCls = HostVirtualComputeResponse
 
 
 # Version 2
 class NetActuateConnection(ConnectionKey):
-    """ """
+    """NA Connection"""
     host = API_VARS['v2']['API_HOST']
 
     allow_insecure = True
@@ -221,14 +222,14 @@ class NetActuateNode(Node):
 
     @property
     def ssh(self):
-        """ """
+        """Method override"""
         # just return the _ssh client if e have it already
         if self._ssh_client is not None:
             return self._ssh_client
 
         # just return if we don't have an auth_key
         if self.auth_method is None:
-            return
+            return None
 
         # no connection, start setting one up using the
         # first private IP
@@ -260,7 +261,7 @@ class NetActuateNode(Node):
 
     @property
     def auth(self):
-        """ """
+        """Method override"""
         return self._auth
 
     @auth.setter
@@ -271,9 +272,7 @@ class NetActuateNode(Node):
         :type auth_type: One of NodeAuthPassword or NodeAuthSSHKey
 
         """
-        if (isinstance(auth_type, NodeAuthPassword)) or (
-            isinstance(auth_type, NodeAuthSSHKey)
-        ):
+        if isinstance(auth_type, (NodeAuthPassword, NodeAuthSSHKey)):
             self._auth = auth_type
             self._set_auth_method(auth_type)
             if self._ssh_client:
@@ -281,7 +280,8 @@ class NetActuateNode(Node):
                 self._ssh_client = None
         else:
             raise paramiko.ssh_exception.BadAuthenticationType(
-                "Only NodeAuthPassword and NodeAuthSSHKey are allowed"
+                "Only NodeAuthPassword and NodeAuthSSHKey are allowed",
+                [NodeAuthPassword, NodeAuthSSHKey]
             )
 
     def _set_auth_method(self, auth):
@@ -299,7 +299,8 @@ class NetActuateNode(Node):
             self.auth_method = None
         else:
             raise paramiko.ssh_exception.BadAuthenticationType(
-                "Only NodeAuthPassword and NodeAuthSSHKey are allowed"
+                "Only NodeAuthPassword and NodeAuthSSHKey are allowed",
+                [NodeAuthPassword, NodeAuthSSHKey]
             )
 
 
@@ -338,7 +339,7 @@ class NetActuateResponse(JsonResponse):
         return self.body
 
     def success(self):
-        """ """
+        """Method override"""
         return self.status in self.valid_response_codes
 
 
@@ -358,14 +359,17 @@ class NetActuateFromDict(object):
 
 
 class NetActuateJobStatus(object):
-    """ """
+    """NA Job Status
+    This class gets a job result and uses the info
+    to query the api to check on the status of the job
+    """
     API_ROOT = API_VARS['v2']['API_ROOT']
 
     def __init__(
             self,
             conn=None,
             node=None,
-            job_result={}):
+            job_result=None):
         self.conn = conn
         self.node = node
         self.job_result = NetActuateFromDict(job_result)
@@ -373,47 +377,47 @@ class NetActuateJobStatus(object):
 
     @property
     def status(self):
-        """ """
+        """Returns the current status"""
         return int(self._job.status)
 
     @property
     def job_id(self):
-        """ """
+        """Returns the job ID or 0"""
         return getattr(self._job, "id", 0)
 
     @property
     def command(self):
-        """ """
-        return getattr(self._job, "command", 0)
+        """Returns the job command or empty string"""
+        return getattr(self._job, "command", "")
 
     @property
     def inserted(self):
-        """ """
-        return getattr(self._job, "ts_insert", 0)
+        """Returns the job insert time or empty string"""
+        return getattr(self._job, "ts_insert", "")
 
     @property
     def started(self):
-        """ """
-        return getattr(self._job, "ts_start", 0)
+        """Returns the job start time or empty string"""
+        return getattr(self._job, "ts_start", "")
 
     @property
     def finished(self):
-        """ """
+        """Returns the job finish time or empty string"""
         return getattr(self._job, "ts_finish", 0)
 
     @property
     def is_success(self):
-        """ """
+        """Returns True or False"""
         return self.status == 5
 
     @property
     def is_processing(self):
-        """ """
+        """Returns True or False"""
         return self.status == 3
 
     @property
     def is_failure(self):
-        """ """
+        """Returns True or False"""
         return self.status == 6
 
     def _get_job_status(self):
@@ -426,18 +430,17 @@ class NetActuateJobStatus(object):
         return NetActuateFromDict(result) if result else {}
 
     def refresh(self):
-        """ """
+        """Fetch an update of the job's state"""
         self._job = self._get_job_status()
         return self
 
 
 class NetActuateComputeResponse(NetActuateResponse):
-    """ """
-    pass
+    """NA Compute Response"""
 
 
 class NetActuateComputeConnection(NetActuateConnection):
-    """ """
+    """NA Compute Connection"""
     responseCls = NetActuateComputeResponse
 
 
@@ -448,4 +451,3 @@ def dummyLogger(*args, **kwargs):
     :param **kwargs: Just accept any arguments
 
     """
-    pass
